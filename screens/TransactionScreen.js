@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import * as Permissions from "expo-permissions";
 import { BarCodeScanner } from "expo-barcode-scanner";
+import db from "../config"
 
 const bgImage = require("../assets/background2.png");
 const appIcon = require("../assets/appIcon.png");
@@ -57,6 +58,28 @@ export default class TransactionScreen extends Component {
       });
     }
   };
+  handleTransaction=()=>{
+    var{bookId}=this.state
+    db.collection("books")
+    .doc(bookId)
+    .get()
+    .then(doc=>{
+      console.log(doc.data())
+      var book = doc.data()
+      if (book.is_book_avalible) {
+       this.initiateBookIssue() 
+      } else {
+         this.initiateBookReturn()
+      }
+    })
+    
+  }
+  initiateBookIssue=()=>{
+    console.log("livro retirado pelo aluno")
+  }
+  initiateBookReturn=()=>{
+    console.log("livro retornado a biblioteca")
+  }
 
   render() {
     const { bookId, studentId, domState, scanned } = this.state;
@@ -104,6 +127,12 @@ export default class TransactionScreen extends Component {
                 <Text style={styles.scanbuttonText}>Digitalizar</Text>
               </TouchableOpacity>
             </View>
+            <TouchableOpacity style={styles.button}
+                onPress={this.handleTransaction()}>
+              <Text style={styles.buttonText}>
+                enviar
+              </Text>
+            </TouchableOpacity>
           </View>
         </ImageBackground>
       </View>
@@ -171,6 +200,20 @@ const styles = StyleSheet.create({
   scanbuttonText: {
     fontSize: 20,
     color: "#0A0101",
+    fontFamily: "Rajdhani_600SemiBold"
+  },
+  button: {
+    marginTop:25,
+    width:"43%",
+    height:55,
+    justifyContent:"center",
+    alignItems:"center",
+    backgroundColor:"#f48d20",
+    borderRadius:15
+  },
+  buttonText: {
+    fontSize:24,
+    color:"#ffffff",
     fontFamily: "Rajdhani_600SemiBold"
   }
 });
