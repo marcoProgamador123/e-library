@@ -31,7 +31,7 @@ export default class BottomTabNavigator extends Component{
                         }
 
                     })} 
-                    tabBarOptions={{
+                    /*tabBarOptions={{
                         activeTintColor: "#FFFFFF",
                         inactiveTintColor: "black",
                         style: {
@@ -54,7 +54,7 @@ export default class BottomTabNavigator extends Component{
                           justifyContent: "center",
                           backgroundColor: "#5653d4"
                         }
-                      }}
+                      }}*/
                     >
 
                     <Tab.Screen name="transação" component={TransactionScreen} />
