@@ -67,27 +67,54 @@ export default class TransactionScreen extends Component {
     var { bookId, studentId } = this.state
      await this.getBookDetails(bookId)
      await this.getStudentDetails(studentId)
-    db.collection("books")
-      .doc(bookId)
-      .get()
-      .then(doc => {
-        console.log(doc.data())
-        var book = doc.data()
-        if (book.is_book_avaliable) {
-          var {bookName,studentName}=this.state
-           this.initiateBookIssue(bookId,studentId,bookName,studentName)
-           ToastAndroid.show("livro retirado com sucesso",ToastAndroid.SHORT)
-        } else {
-          var {bookName,studentName}=this.state
-          this.initiateBookReturn(bookId,studentId,bookName,studentName)
-          ToastAndroid.show("livro devolvido com sucesso",ToastAndroid.SHORT)
-        }
-      })
+      //a checkBookAvailability pode retornar false ou seja não existe 
+      //tipo de transação                 //se o livro existe retorna issue ou return
+     var transaction_Type = await this.checkBookAvailability(bookId)
+     //se checkBookAvailability retornar false zeramos os states 
+     // e mandamos a mensagem livor não existe
+     if(!transaction_Type){
+       this.setState({
+         bookId:"",
+         studentId:""
+       })
+       ToastAndroid.show(" o livro não existe", ToastAndroid.SHORT)
+     } 
+     // se não retornar false e nem return, a checkBookAvailability retornar issue 
+     else if(transaction_Type==="issue"){
+                                  //esta função verifica a elegibilidade do aluno para a emissão do
+                                  //livro para o aluno
+       var isElegible=await this.checkStudentElegibilityForBookIssue(studentId)
+       if(isElegible){
+        var {bookName,studentName}=this.state
+
+        //a função initiateBookIssue inicia a emissão do livro para o aluno 
+        // e quando a emissão do livro for feita retornamos a mensagem livro retirado com sucesso
+        this.initiateBookIssue(bookId,studentId,bookName,studentName)
+        ToastAndroid.show("livro retirado com sucesso",ToastAndroid.SHORT)
+       }
+     }
+      //se não retornar false nem issue, a checkBookAvailability retornar return
+     else{
+                                  //esta função verifica a elegibilidade do aluno para a devolução do
+                                  //livro
+       var isElegible=await this.checkStudentElegibilityForBookReturn(bookId,studentId)
+       if(isElegible){
+        var {bookName,studentName}=this.state
+
+        //a função initiateBookReturn inicia a devolução do livro para a biblioteca
+        // e quando a devolução do livro for feita retornamos a mensagem livro devolvido com sucesso
+        this.initiateBookReturn(bookId,studentId,bookName,studentName)
+        ToastAndroid.show("livro devolvido com sucesso",ToastAndroid.SHORT)
+       }
+     }  
 
   }
+  // obter detalhes do livro
   getBookDetails = bookId => {
     bookId = bookId.trim();
+    //busca a coleção no firestore
     db.collection("books")
+        //procura o dado no documento 
       .where("book_id", "==", bookId)
       .get()
       .then(snapshot => {
@@ -168,8 +195,97 @@ export default class TransactionScreen extends Component {
       studentId: ""
     });
   };
+  //verifica a disponibilidade do livro
+  checkBookAvailability = async bookId => {
+    const bookRef = await db
+      //busca a coleção no firestore
+      .collection("books")
+      //procura o dado no documento
+      .where("book_id", "==", bookId)
+      .get()
 
+      //coletamos os dados e verificamos se o livro existe
+      //se não, retornamos falso
+      //se sim retornamos a disponibilidade atual do livro
+    var transactionType = ""
+    if (bookRef.docs.length == 0) {
+      transactionType = false
+    } else {
+      bookRef.docs.map(doc => {
+        //se o livro estiver disponível, o tipo da transação será issue
+        //se não, será return
+        transactionType = doc.data().is_book_available ? "issue" : "return"
+      })
+    }
+    return transactionType
+  }
+  //verifica a elegibilidade do aluno para a emissão do livro 
+  checkStudentElegibilityForBookIssue = async studentId => {
+    const studentRef = await db
+    //busca a coleção no firestore
+      .collection("students")
+      //procura o dado no documento 
+      .where("student_id","==",studentId)
+      .get()
 
+      //verificamos se o estudante existe
+      //se não informamos que o aluno não existe
+    var isStudentElegible = ""
+    if (studentRef.docs.length == 0) {
+      this.setState({
+        bookId: "",
+        studentId:""
+      })
+      isStudentElegible = false
+      Alert.alert("O ID do aluno não existe em nosso banco de dados!")
+    } else {
+      //se o estudante existir verificamos se ele pegou menos de dois livros
+      //se sim retornamos true para a elegibilidade do aluno
+      //se não retornamos falso e informamos ao usuário que o aluno esta com 2 livros alugados
+      studentRef.docs.map(doc =>{
+        if (doc.data().number_of_books_issued < 2) {
+          isStudentElegible = true
+        } else {
+          isStudentElegible = false
+          Alert.alert("O aluno já retirou 2 livros!")
+          this.setState({
+            bookId:"",
+            studentId:""
+          })
+        }
+      })
+    }
+    return isStudentElegible
+  }
+  //verifica a elegibilidade do aluno para a devolução do livro 
+  checkStudentElegibilityForBookReturn = async (bookId, studentId) => {
+    //coletando as informações no banco de dados
+    const transactionRef = await db
+      .collection("transactions")
+      .where("book_id","==",bookId)
+      .limit(1)
+      .get()
+
+      //verificamos se o livro foi retirado por esse estudante
+      //se sim, retornamos true
+      //se não, retornamos false e informamos que o livro não foi retirado por esse estudante.
+    var isStudentElegible = ""
+    transactionRef.docs.map(doc => {
+      var lastBookTransaction = doc.data()
+      if (lastBookTransaction.student_id === studentId) {
+        isStudentElegible = true;
+      } else {
+        isStudentElegible = false
+        Alert.alert("O livro não foi retirado por esse aluno!")
+        this.setState({
+          bookId:"",
+          studentId:""
+        })
+      }
+      
+    })
+    return isStudentElegible
+  }
   render() {
     const { bookId, studentId, domState, scanned } = this.state;
     if (domState !== "normal") {
