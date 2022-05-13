@@ -12,53 +12,68 @@ export default class SearchScreen extends Component {
             searchText: ""
         };
     }
+    //aqui no componentDidMount, quando abrimos o app ele executa a função getTransactions
+    //  
     componentDidMount = async () => {
         this.getTransactions();
     };
-
+    //obter transações 
     getTransactions = () => {
+        //busca as transações 
         db.collection("transactions")
+            // determina um limite para trazer transações de 10 em 10 
             .limit(10)
             .get()
             .then(snapshot => {
+                //mapeio as transações
                 snapshot.docs.map(doc => {
                     this.setState({
+                        //alltransactions recebe todas as transações
                         allTransactions: [...this.state.allTransactions, doc.data()],
                         lastVisibleTransaction: doc
                     });
                 });
             });
     };
-
+    //lida com as pesquisas
     handleSearch = async text => {
         var enteredText = text.toUpperCase().split("");
+        //se inserir texto as letras ficam maiusculas,e alltransactions recebe um array vazio
         text = text.toUpperCase();
         this.setState({
             allTransactions: []
         });
+        //se não tiver nenhum texto eu volto obeter transações
         if (!text) {
             this.getTransactions();
         }
-
+        //se a palavra que eu escrever começar com B, procuro tudo que estiver relacionado 
+        // com book id 
         if (enteredText[0] === "B") {
             db.collection("transactions")
                 .where("book_id", "==", text)
                 .get()
                 .then(snapshot => {
+                    //mapeio as transações
                     snapshot.docs.map(doc => {
                         this.setState({
+                            //alltransactions recebe todas as trasações com uqe começão com B
                             allTransactions: [...this.state.allTransactions, doc.data()],
                             lastVisibleTransaction: doc
                         });
                     });
                 });
+        //se a palavra que eu escrever começar com S, procuro tudo que estiver relacionado 
+        // com student id
         } else if (enteredText[0] === "S") {
             db.collection("transactions")
                 .where("student_id", "==", text)
                 .get()
                 .then(snapshot => {
+                    //mapeio as transações
                     snapshot.docs.map(doc => {
                         this.setState({
+                            //alltransactions recebe todas as trasações com uqe começão com S
                             allTransactions: [...this.state.allTransactions, doc.data()],
                             lastVisibleTransaction: doc
                         });
@@ -66,7 +81,7 @@ export default class SearchScreen extends Component {
                 });
         }
     };
-
+    //buscar mais transações
     fetchMoreTransactions = async text => {
         var enteredText = text.toUpperCase().split("");
         text = text.toUpperCase();
